@@ -1,5 +1,6 @@
 import com.lightbend.sbt.javaagent.JavaAgent.JavaAgentKeys.javaAgents
 import akka.grpc.gen.scaladsl.ScalaClientCodeGenerator
+import play.sbt.PlayAkkaHttp2Support
 
 
 organization in ThisBuild := "com.example"
@@ -12,7 +13,7 @@ val macwire = "com.softwaremill.macwire" %% "macros" % "2.3.0" % "provided"
 val scalaTest = "org.scalatest" %% "scalatest" % "3.0.4" % Test
 
 lazy val `lagom-grpc-labs` = (project in file("."))
-  .aggregate( `hello-api`, `hello-impl`)
+  .aggregate(`hello-api`, `hello-impl`)
 
 lazy val `hello-api` = (project in file("hello-api"))
   .settings(
@@ -22,7 +23,11 @@ lazy val `hello-api` = (project in file("hello-api"))
   )
 
 lazy val `hello-impl` = (project in file("hello-impl"))
-  .enablePlugins(LagomScala, JavaAgent, AkkaGrpcPlugin)
+  .enablePlugins(LagomScala
+    && PlayAkkaHttp2Support
+    && AkkaGrpcPlugin
+  )
+  .disablePlugins(PlayLayoutPlugin)
   .settings(
     libraryDependencies ++= Seq(
       macwire,
@@ -30,10 +35,9 @@ lazy val `hello-impl` = (project in file("hello-impl"))
     ),
   )
   .settings(
-    PB.protoSources in Compile += target.value / "protobuf",
+    PB.protoSources in Compile += sourceDirectory.value / "protobuf",
     (akkaGrpcCodeGenerators in Compile) := Seq(
-      GeneratorAndSettings(ScalaClientCodeGenerator, (akkaGrpcCodeGeneratorSettings in Compile).value)),
-    javaAgents += "org.mortbay.jetty.alpn" % "jetty-alpn-agent" % "2.0.6" % "runtime",
+      GeneratorAndSettings(ScalaClientCodeGenerator, (akkaGrpcCodeGeneratorSettings in Compile).value))
   )
   .settings(lagomForkedTestSettings: _*)
   .dependsOn(`hello-api`)
