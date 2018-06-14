@@ -1,35 +1,38 @@
-package com.example.hack
+package com.lagom.scaladsl.grpc
 
-import java.io._
+import java.io.{ByteArrayOutputStream, InputStream}
+import java.security.{KeyFactory, KeyStore, SecureRandom}
 import java.security.cert.CertificateFactory
 import java.security.spec.PKCS8EncodedKeySpec
-import java.security.{ KeyFactory, KeyStore, SecureRandom }
 import java.util.Base64
 
-import akka.actor.{ ActorSystem, CoordinatedShutdown }
-import akka.http.scaladsl.model.{ HttpRequest, HttpResponse, StatusCodes }
-import akka.http.scaladsl.{ Http, Http2, HttpsConnectionContext }
-import akka.stream.{ ActorMaterializer, Materializer }
-import com.typesafe.config.ConfigFactory
-import example.myapp.helloworld.grpc.GreeterServiceHandler
-import javax.net.ssl.{ KeyManagerFactory, SSLContext }
+import akka.actor.ActorSystem
+import akka.http.scaladsl.{Http, HttpsConnectionContext}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
+import akka.stream.Materializer
+import com.typesafe.config.{Config, ConfigFactory}
+import javax.net.ssl.{KeyManagerFactory, SSLContext}
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
+
+trait LagomGrpcServer
+
 
 /**
-  * This is a hack! Do not do this in your production code!!!
+  * Internal API
   */
-class EmbeddedAkkaGrpcServer(remotePort:Int) {
+private [lagom] class EmbeddedAkkaGrpcServer(serviceHandler: PartialFunction[HttpRequest, Future[HttpResponse]],
+                                             remotePort: Int,
+                                             actorSystem: ActorSystem,
+                                             materializer: Materializer) extends LagomGrpcServer {
 
-  // important to enable HTTP/2 in ActorSystem's config
-  val conf = ConfigFactory.parseString("akka.http.server.preview.enable-http2 = on")
-    .withFallback(ConfigFactory.defaultApplication())
-  implicit val sys: ActorSystem = ActorSystem("HelloWorld", conf)
-  implicit val mat: Materializer = ActorMaterializer()
-  implicit val ec: ExecutionContext = sys.dispatcher
+  implicit val sys = actorSystem
+  implicit val mat = materializer
+  implicit val ec: ExecutionContext = actorSystem.dispatcher
 
-  val service: HttpRequest => Future[HttpResponse] = GreeterServiceHandler(new GreeterServiceImpl(mat))
-    .orElse { case _ => Future.successful(HttpResponse(StatusCodes.NotFound)) }
+  val service: HttpRequest => Future[HttpResponse] =
+    serviceHandler
+      .orElse { case _ => Future.successful(HttpResponse(StatusCodes.NotFound)) }
 
   private val eventualBinding: Future[Http.ServerBinding] = Http().bindAndHandleAsync(
     service,
@@ -41,6 +44,7 @@ class EmbeddedAkkaGrpcServer(remotePort:Int) {
     println(s"gRPC server bound to: ${binding.localAddress}")
   }
 
+  // TODO: replace it by CoordinatedShutdown
   def shutdown =
     eventualBinding.flatMap {
       bind =>

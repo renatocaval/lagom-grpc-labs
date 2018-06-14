@@ -14,6 +14,7 @@ lazy val `lagom-grpc-labs` = (project in file("."))
   .aggregate(`hello-api`, `hello-impl`, `play-app`)
 
 lazy val `hello-api` = (project in file("hello-api"))
+  .enablePlugins(AkkaGrpcPlugin) // TODO: remove it for proper dependency
   .settings(
     libraryDependencies ++= Seq(
       lagomScaladslApi
@@ -22,7 +23,7 @@ lazy val `hello-api` = (project in file("hello-api"))
 
 lazy val `hello-impl` = (project in file("hello-impl"))
   .enablePlugins(LagomScala,
-//    JavaAgent,
+    JavaAgent,
     AkkaGrpcPlugin)
   .settings(
     libraryDependencies ++= Seq(
@@ -32,8 +33,8 @@ lazy val `hello-impl` = (project in file("hello-impl"))
   .settings(
     PB.protoSources in Compile += target.value / "protobuf",
     akkaGrpcGeneratedSources := Seq(AkkaGrpc.Client, AkkaGrpc.Server),
-//    javaAgents += "org.mortbay.jetty.alpn" % "jetty-alpn-agent" % "2.0.7" % "runtime",
-    )
+    javaAgents += "org.mortbay.jetty.alpn" % "jetty-alpn-agent" % "2.0.7" % "runtime",
+  )
   .settings(lagomForkedTestSettings: _*)
   .dependsOn(`hello-api`)
 

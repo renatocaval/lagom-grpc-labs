@@ -1,18 +1,19 @@
 package com.example.hello.impl
 
+import akka.NotUsed
 import akka.stream.Materializer
-import com.example.hack.EmbeddedAkkaGrpcServer
+import akka.stream.scaladsl.Source
 import com.example.hello.api.HelloService
-import com.example.internal.{ GrpcClientSettingsProvider, GrpcComponents }
+import com.example.internal.{GrpcClientSettingsProvider, GrpcComponents}
+import com.lagom.scaladsl.grpc.GrpcServerComponents
 import com.lightbend.lagom.scaladsl.api.ServiceLocator
 import com.lightbend.lagom.scaladsl.api.ServiceLocator.NoServiceLocator
 import com.lightbend.lagom.scaladsl.devmode.LagomDevModeComponents
 import com.lightbend.lagom.scaladsl.server._
 import com.softwaremill.macwire._
-import example.myapp.helloworld.grpc.{ GreeterService, HelloReply, HelloRequest }
+import example.myapp.helloworld.grpc.{GreeterService, GreeterServiceHandler, HelloReply, HelloRequest}
 import play.api.libs.ws.ahc.AhcWSComponents
-
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 class HelloLoader extends LagomApplicationLoader {
 
@@ -30,17 +31,15 @@ class HelloLoader extends LagomApplicationLoader {
 abstract class HelloApplication(context: LagomApplicationContext)
   extends LagomApplication(context)
     with AhcWSComponents
-    with GrpcComponents {
+    with GrpcComponents
+    with GrpcServerComponents {
 
   // Bind the service that this server provides
   override lazy val lagomServer = serverFor[HelloService](wire[HelloServiceImpl])
 
   val client: GreeterService = wire[GreeterServiceClient]
-
   val remotePort:Int = 8080
-
-  private val akkaGrpcServer: EmbeddedAkkaGrpcServer = wire[EmbeddedAkkaGrpcServer]
-  applicationLifecycle.addStopHook(() => akkaGrpcServer.shutdown)
+  val lagomGrpcServer = grpcServerFor(GreeterServiceHandler(new GreeterServiceImpl(materializer)), remotePort)
 
 }
 
@@ -53,4 +52,8 @@ class GreeterServiceClient(grpcClientSettingsProvider: GrpcClientSettingsProvide
     grpcClientSettingsProvider.withSettings(GreeterService.name) { settings =>
       example.myapp.helloworld.grpc.GreeterServiceClient(settings).sayHello(in)
     }
+
+  override def itKeepsTalking(in: Source[HelloRequest, NotUsed]): Future[HelloReply] = ???
+  override def itKeepsReplying(in: HelloRequest): Source[HelloReply, NotUsed] = ???
+  override def streamHellos(in: Source[HelloRequest, NotUsed]): Source[HelloReply, NotUsed] = ???
 }

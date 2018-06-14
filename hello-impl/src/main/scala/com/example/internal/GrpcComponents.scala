@@ -10,6 +10,7 @@ import scala.concurrent.ExecutionContext
   *
   */
 trait GrpcComponents {
+
   def serviceLocator: ServiceLocator
   def actorSystem: ActorSystem
   def materializer: Materializer

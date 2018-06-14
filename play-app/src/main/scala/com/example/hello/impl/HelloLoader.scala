@@ -1,21 +1,23 @@
 package com.example.hello.impl
 
+import akka.NotUsed
 import akka.grpc.GrpcClientSettings
 import akka.stream.Materializer
-import com.lightbend.lagom.scaladsl.api.{ LagomConfigComponent, ServiceAcl, ServiceInfo }
+import akka.stream.scaladsl.Source
+import com.lightbend.lagom.scaladsl.api.{LagomConfigComponent, ServiceAcl, ServiceInfo}
 import com.lightbend.lagom.scaladsl.client.LagomServiceClientComponents
 import com.lightbend.lagom.scaladsl.devmode.LagomDevModeComponents
 import com.softwaremill.macwire._
 import controllers.HelloController
-import example.myapp.helloworld.grpc.{ GreeterService, HelloReply, HelloRequest }
+import example.myapp.helloworld.grpc.{GreeterService, HelloReply, HelloRequest}
 import play.api.ApplicationLoader.Context
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.{ ApplicationLoader, BuiltInComponentsFromContext }
+import play.api.{ApplicationLoader, BuiltInComponentsFromContext}
 import play.filters.HttpFiltersComponents
 import router.Routes
 
 import scala.collection.immutable
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 class HelloLoader extends ApplicationLoader {
   def load(context: Context) = {
@@ -56,9 +58,15 @@ class GreeterServiceClient(remotePort:Int)(mat: Materializer, ex: ExecutionConte
 
   val settings = GrpcClientSettings("127.0.0.1", remotePort)
     .withOverrideAuthority("foo.test.google.fr")
-    .withCertificate("ca.pem")
+    .withTrustedCaCertificate("ca.pem")
 
   override def sayHello(in: HelloRequest): Future[HelloReply] =
     example.myapp.helloworld.grpc.GreeterServiceClient(settings).sayHello(in)
+
+  override def itKeepsTalking(in: Source[HelloRequest, NotUsed]): Future[HelloReply] = ???
+
+  override def itKeepsReplying(in: HelloRequest): Source[HelloReply, NotUsed] = ???
+
+  override def streamHellos(in: Source[HelloRequest, NotUsed]): Source[HelloReply, NotUsed] = ???
 }
 
