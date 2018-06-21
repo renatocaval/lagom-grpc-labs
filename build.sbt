@@ -22,9 +22,12 @@ lazy val `hello-api` = (project in file("hello-api"))
   )
 
 lazy val `hello-impl` = (project in file("hello-impl"))
-  .enablePlugins(LagomScala,
+  .enablePlugins(
+    LagomScala,
     JavaAgent,
-    AkkaGrpcPlugin)
+    AkkaGrpcPlugin,
+    SbtReactiveAppPlugin
+  )
   .settings(
     libraryDependencies ++= Seq(
       macwire
@@ -35,6 +38,18 @@ lazy val `hello-impl` = (project in file("hello-impl"))
     akkaGrpcGeneratedSources := Seq(AkkaGrpc.Client, AkkaGrpc.Server),
     javaAgents += "org.mortbay.jetty.alpn" % "jetty-alpn-agent" % "2.0.7" % "runtime",
   )
+  .settings(
+    // declares a new named port for grpc
+    endpoints += HttpEndpoint(
+      name = "grpc", 
+      port = 8080,
+      ingress = HttpIngress(
+        ingressPorts = Vector(8080),
+        hosts = Vector("grpc.lagom"),
+        paths = Vector("/")
+      )
+    )
+  )
   .settings(lagomForkedTestSettings: _*)
   .dependsOn(`hello-api`)
 
@@ -44,9 +59,13 @@ lazy val `hello-impl` = (project in file("hello-impl"))
 // We're leaving JavaAgent and "javaAgents +=" enabled to trigger the artifact download.
 
 lazy val `play-app` = (project in file("play-app"))
-  .enablePlugins(PlayScala, LagomPlay,
+  .enablePlugins(
+    PlayScala, 
+    LagomPlay,
     JavaAgent,
-    AkkaGrpcPlugin)
+    AkkaGrpcPlugin,
+    SbtReactiveAppPlugin
+  )
   .disablePlugins(PlayLayoutPlugin)
   .settings(
     libraryDependencies ++= Seq(
@@ -59,10 +78,12 @@ lazy val `play-app` = (project in file("play-app"))
     javaAgents += "org.mortbay.jetty.alpn" % "jetty-alpn-agent" % "2.0.7" % "runtime",
   )
   .settings(lagomForkedTestSettings: _*)
+  .settings(httpIngressPaths := Seq("/"))
 
 lagomServicesPortRange in ThisBuild := PortRange(50000, 51000)
 
 lagomKafkaEnabled in ThisBuild := false
 lagomCassandraEnabled in ThisBuild := false
 
-lagomUnmanagedServices in ThisBuild += ("helloworld.GreeterService" -> "http://127.0.0.1:8080")
+
+lagomUnmanagedServices in ThisBuild += ("hello-grpc" -> "http://127.0.0.1:8080")

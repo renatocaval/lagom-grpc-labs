@@ -5,8 +5,10 @@ This project uses Lagom's DevMode to start a Lagom Service and a Play Applicatio
 The proxy services are reachable at:
 
 ```
-$ curl http://localhost:9000/api/hello/arthur  ## the lagom service
-$ curl http://localhost:9000/play/hello        ## the play app
+$ curl http://localhost:9000/lagom/hello/arthur       ## call the lagom service
+$ curl http://localhost:9000/lagom/hello/arthur/grpc  ## call gRPC server via lagom service (proxy)
+$ curl http://localhost:9000/play/hello/arthur        ## call the play service
+$ curl http://localhost:9000/play/hello/arthur/grpc   ## call gRPC server via play service (proxy)
 ```
 
 These two proxy services offer a single HTTP/1.1 endpoint each that proxies the request to "localhost:8080" using an akka-grpc client. 

@@ -22,7 +22,6 @@ trait LagomGrpcServer
   * Internal API
   */
 private [lagom] class EmbeddedAkkaGrpcServer(serviceHandler: PartialFunction[HttpRequest, Future[HttpResponse]],
-                                             remotePort: Int,
                                              actorSystem: ActorSystem,
                                              materializer: Materializer) extends LagomGrpcServer {
 
@@ -34,9 +33,12 @@ private [lagom] class EmbeddedAkkaGrpcServer(serviceHandler: PartialFunction[Htt
     serviceHandler
       .orElse { case _ => Future.successful(HttpResponse(StatusCodes.NotFound)) }
 
+  val config = actorSystem.settings.config
+  val host = config.getString("akka-grpc.server.http.address")
+  val remotePort = config.getInt("akka-grpc.server.http.port")
   private val eventualBinding: Future[Http.ServerBinding] = Http().bindAndHandleAsync(
     service,
-    interface = "127.0.0.1",
+    interface = host,
     port = remotePort,
     connectionContext = serverHttpContext()
   )

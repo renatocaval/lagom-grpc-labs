@@ -8,8 +8,11 @@ class HelloController(client: GreeterService, controllerComponents: ControllerCo
                      (implicit ec: ExecutionContext)
   extends AbstractController(controllerComponents) {
 
-  def hello() = Action.async { implicit req =>
-    client.sayHello(HelloRequest(req.path)).map(rp => Results.Ok(rp.message))
+  def hello(name: String) = Action { implicit req =>
+    Results.Ok(s"Hello $name")
   }
 
+  def helloGrpc(name: String) = Action.async { implicit req =>
+    client.sayHello(HelloRequest(name)).map(rp => Results.Ok( s"Received [${rp.message}] via gRPC."))
+  }
 }

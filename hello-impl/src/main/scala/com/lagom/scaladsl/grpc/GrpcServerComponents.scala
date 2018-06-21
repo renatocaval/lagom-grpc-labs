@@ -25,9 +25,9 @@ trait GrpcServerComponents {
 
 
   // AkkaGrpcServer
-  def grpcServerFor(serviceHandler: PartialFunction[HttpRequest, Future[HttpResponse]], remotePort: Int): LagomGrpcServer = {
+  def grpcServerFor(serviceHandler: PartialFunction[HttpRequest, Future[HttpResponse]]): LagomGrpcServer = {
     val akkaGrpcServer =
-      new EmbeddedAkkaGrpcServer(serviceHandler, remotePort, actorSystem, materializer)
+      new EmbeddedAkkaGrpcServer(serviceHandler, actorSystem, materializer)
 
     // TODO: replace it by CoordinatedShutdown
     applicationLifecycle.addStopHook(() => akkaGrpcServer.shutdown)

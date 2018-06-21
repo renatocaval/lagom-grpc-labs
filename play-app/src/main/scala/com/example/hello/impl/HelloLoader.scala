@@ -7,12 +7,13 @@ import akka.stream.scaladsl.Source
 import com.lightbend.lagom.scaladsl.api.{LagomConfigComponent, ServiceAcl, ServiceInfo}
 import com.lightbend.lagom.scaladsl.client.LagomServiceClientComponents
 import com.lightbend.lagom.scaladsl.devmode.LagomDevModeComponents
+import com.lightbend.rp.servicediscovery.lagom.scaladsl.LagomServiceLocatorComponents
 import com.softwaremill.macwire._
 import controllers.HelloController
 import example.myapp.helloworld.grpc.{GreeterService, HelloReply, HelloRequest}
 import play.api.ApplicationLoader.Context
 import play.api.libs.ws.ahc.AhcWSComponents
-import play.api.{ApplicationLoader, BuiltInComponentsFromContext}
+import play.api.{ApplicationLoader, BuiltInComponentsFromContext, Mode}
 import play.filters.HttpFiltersComponents
 import router.Routes
 
@@ -20,9 +21,14 @@ import scala.collection.immutable
 import scala.concurrent.{ExecutionContext, Future}
 
 class HelloLoader extends ApplicationLoader {
-  def load(context: Context) = {
-    (new HelloApplication(context) with LagomDevModeComponents).application
+  def load(context: Context) =
+    context.environment.mode match {
+    case Mode.Dev =>
+      (new HelloApplication(context) with LagomDevModeComponents).application
+    case _ =>
+      (new HelloApplication(context) with LagomServiceLocatorComponents).application
   }
+  
 }
 
 abstract class HelloApplication(context: Context)
@@ -56,7 +62,7 @@ class GreeterServiceClient(remotePort:Int)(mat: Materializer, ex: ExecutionConte
   private implicit val materializer = mat
   private implicit val executionContext = ex
 
-  val settings = GrpcClientSettings("127.0.0.1", remotePort)
+  val settings = GrpcClientSettings("10.108.169.215", remotePort)
     .withOverrideAuthority("foo.test.google.fr")
     .withTrustedCaCertificate("ca.pem")
 

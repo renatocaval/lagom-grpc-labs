@@ -1,1 +1,2 @@
-GET /play/hello     controllers.HelloController.hello
+GET /play/hello/:name       controllers.HelloController.hello(name: String)
+GET /play/hello/:name/grpc  controllers.HelloController.helloGrpc(name: String)
