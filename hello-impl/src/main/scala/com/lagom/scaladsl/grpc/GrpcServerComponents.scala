@@ -1,20 +1,15 @@
 package com.lagom.scaladsl.grpc
 
-import java.io.{ByteArrayOutputStream, InputStream}
-import java.security.{KeyFactory, KeyStore, SecureRandom}
-import java.security.cert.CertificateFactory
-import java.security.spec.PKCS8EncodedKeySpec
-import java.util.Base64
-
 import akka.actor.ActorSystem
-import akka.http.scaladsl.{Http, HttpsConnectionContext}
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.Materializer
-import com.typesafe.config.{Config, ConfigFactory}
-import javax.net.ssl.{KeyManagerFactory, SSLContext}
+import com.lightbend.lagom.scaladsl.server.LagomServer
 import play.api.inject.ApplicationLifecycle
+import play.api.mvc.Handler
+import play.api.routing.Router.Routes
+import play.api.routing.{Router, SimpleRouter}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 trait GrpcServerComponents {
 
@@ -23,16 +18,36 @@ trait GrpcServerComponents {
   def materializer: Materializer
   def applicationLifecycle: ApplicationLifecycle
 
+  def composeRouter(lagomServer: LagomServer, serviceHandler: PartialFunction[HttpRequest, Future[HttpResponse]]): Router = {
+    val grpcRouter = routerFor(serviceHandler)
 
-  // AkkaGrpcServer
-  def grpcServerFor(serviceHandler: PartialFunction[HttpRequest, Future[HttpResponse]]): LagomGrpcServer = {
-    val akkaGrpcServer =
-      new EmbeddedAkkaGrpcServer(serviceHandler, actorSystem, materializer)
+    lagomServer.router.routes.orElse(grpcRouter.routes)
 
-    // TODO: replace it by CoordinatedShutdown
-    applicationLifecycle.addStopHook(() => akkaGrpcServer.shutdown)
-    akkaGrpcServer
+    new SimpleRouter {
+      override def routes: Routes = lagomServer.router.routes.orElse(grpcRouter.routes)
+    }
   }
 
-  def lagomGrpcServer: LagomGrpcServer
+  private def routerFor(serviceHandler: PartialFunction[HttpRequest, Future[HttpResponse]]): Router ={
+    new Router {
+
+      val handler = new AkkaHttpHandler {
+        override def apply(request: HttpRequest): Future[HttpResponse] = serviceHandler(request)
+      }
+
+      override def routes: Routes = { case _ ⇒ handler }
+
+      override def documentation: Seq[(String, String, String)] = Seq.empty
+
+      override def withPrefix(prefix: String): Router = this
+    }
+  }
+
+  trait AkkaHttpHandler extends (HttpRequest => Future[HttpResponse]) with Handler
+
+  object AkkaHttpHandler {
+    def apply(handler: HttpRequest => Future[HttpResponse]): AkkaHttpHandler = new AkkaHttpHandler {
+      def apply(request: HttpRequest): Future[HttpResponse] = handler(request)
+    }
+  }
 }

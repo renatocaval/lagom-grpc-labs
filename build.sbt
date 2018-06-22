@@ -38,18 +38,7 @@ lazy val `hello-impl` = (project in file("hello-impl"))
     akkaGrpcGeneratedSources := Seq(AkkaGrpc.Client, AkkaGrpc.Server),
     javaAgents += "org.mortbay.jetty.alpn" % "jetty-alpn-agent" % "2.0.7" % "runtime",
   )
-  .settings(
-    // declares a new named port for grpc
-    endpoints += HttpEndpoint(
-      name = "grpc", 
-      port = 8080,
-      ingress = HttpIngress(
-        ingressPorts = Vector(8080),
-        hosts = Vector("grpc.lagom"),
-        paths = Vector("/")
-      )
-    )
-  )
+  .settings(lagomServicePort := 10000)
   .settings(lagomForkedTestSettings: _*)
   .dependsOn(`hello-api`)
 
